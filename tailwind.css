@@ -1,0 +1,232 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Download, FileText } from 'lucide-react';
+import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { regions } from '../../../data/products';
+
+interface ArchivedSayim {
+  region: string;
+  date: string;
+  staff: string;
+  entries: any[];
+}
+
+export function SonuclarPanel() {
+  const [archives, setArchives] = useState<ArchivedSayim[]>([]);
+  const [selectedArchive, setSelectedArchive] = useState<ArchivedSayim | null>(null);
+
+  useEffect(() => {
+    const savedArchive = localStorage.getItem('sayim_archive');
+    if (savedArchive) {
+      setArchives(JSON.parse(savedArchive));
+    }
+  }, []);
+
+  const handleDownloadPDF = (archive: ArchivedSayim) => {
+    const doc = new jsPDF();
+    
+    // Logo ekle (base64 olarak eklenebilir)
+    const region = regions.find(r => r.id === archive.region);
+    const regionName = region?.name || archive.region;
+    
+    // Başlık
+    doc.setFontSize(20);
+    doc.text(regionName, 105, 20, { align: 'center' });
+    
+    doc.setFontSize(16);
+    doc.text('Sayım Raporu', 105, 30, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Tarih: ${new Date(archive.date).toLocaleDateString('tr-TR')}`, 20, 45);
+    doc.text(`Personel: ${archive.staff}`, 20, 52);
+    
+    // Tablo
+    const tableData = archive.entries.map(entry => [
+      entry.date,
+      entry.category,
+      entry.product,
+      entry.quantity.toString(),
+      `${entry.gramPerUnit}g`,
+      `${entry.openingGram}g`,
+      `${entry.totalGram.toLocaleString()}g`,
+      entry.staff,
+    ]);
+    
+    (doc as any).autoTable({
+      head: [['Tarih', 'Kategori', 'Ürün', 'Adet', 'Birim Gram', 'Açılış', 'Toplam', 'Personel']],
+      body: tableData,
+      startY: 60,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [245, 158, 11] }, // Amber color
+    });
+    
+    // Toplam
+    const totalGram = archive.entries.reduce((sum, e) => sum + e.totalGram, 0);
+    const finalY = (doc as any).lastAutoTable.finalY || 60;
+    
+    doc.setFontSize(14);
+    doc.text(`TOPLAM: ${totalGram.toLocaleString()} gram`, 20, finalY + 10);
+    
+    // İndir
+    doc.save(`Sayim_${regionName}_${new Date(archive.date).toLocaleDateString('tr-TR')}.pdf`);
+    toast.success('PDF indirildi!');
+  };
+
+  return (
+    <div className="h-full flex flex-col p-8 overflow-hidden">
+      <motion.div
+        className="bg-white rounded-2xl shadow-xl flex-1 flex overflow-hidden"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+      >
+        {/* Sol: Arşiv Listesi */}
+        <div className="w-2/5 p-8 border-r border-gray-200 overflow-y-auto">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6">Sayım Arşivi</h2>
+          
+          <div className="space-y-3">
+            {archives.map((archive, index) => {
+              const region = regions.find(r => r.id === archive.region);
+              return (
+                <motion.div
+                  key={index}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    selectedArchive === archive
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-amber-300'
+                  }`}
+                  onClick={() => setSelectedArchive(archive)}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-800">{region?.name}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {new Date(archive.date).toLocaleDateString('tr-TR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Personel: {archive.staff}</p>
+                      <p className="text-xs text-amber-600 mt-2 font-semibold">
+                        {archive.entries.length} ürün sayıldı
+                      </p>
+                    </div>
+                    <FileText className="w-8 h-8 text-amber-500" />
+                  </div>
+                </motion.div>
+              );
+            })}
+            
+            {archives.length === 0 && (
+              <div className="text-center py-12 text-gray-400">
+                Henüz arşivlenmiş sayım yok
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sağ: Detay ve PDF */}
+        <div className="flex-1 p-8 overflow-y-auto">
+          {selectedArchive ? (
+            <>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-800">Sayım Detayları</h3>
+                <Button
+                  onClick={() => handleDownloadPDF(selectedArchive)}
+                  className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+                >
+                  <Download className="w-5 h-5 mr-2" />
+                  PDF İndir
+                </Button>
+              </div>
+
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-xl mb-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Bölge</p>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {regions.find(r => r.id === selectedArchive.region)?.name}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Tarih</p>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {new Date(selectedArchive.date).toLocaleDateString('tr-TR')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Personel</p>
+                    <p className="text-lg font-semibold text-gray-800">{selectedArchive.staff}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Toplam Ürün</p>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {selectedArchive.entries.length} adet
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+                      <th className="p-3 text-left text-sm font-semibold">Kategori</th>
+                      <th className="p-3 text-left text-sm font-semibold">Ürün</th>
+                      <th className="p-3 text-left text-sm font-semibold">Adet</th>
+                      <th className="p-3 text-left text-sm font-semibold">Birim</th>
+                      <th className="p-3 text-left text-sm font-semibold">Açılış</th>
+                      <th className="p-3 text-left text-sm font-semibold">Toplam</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedArchive.entries.map((entry, index) => (
+                      <motion.tr
+                        key={index}
+                        className="border-b border-gray-200 hover:bg-gray-50"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                      >
+                        <td className="p-3 text-sm">{entry.category}</td>
+                        <td className="p-3 text-sm font-medium">{entry.product}</td>
+                        <td className="p-3 text-sm">{entry.quantity}</td>
+                        <td className="p-3 text-sm">{entry.gramPerUnit}g</td>
+                        <td className="p-3 text-sm">{entry.openingGram}g</td>
+                        <td className="p-3 text-sm font-semibold text-amber-600">
+                          {entry.totalGram.toLocaleString()}g
+                        </td>
+                      </motion.tr>
+                    ))}
+                    <tr className="bg-amber-100 font-bold">
+                      <td colSpan={5} className="p-3 text-right">TOPLAM:</td>
+                      <td className="p-3 text-amber-600">
+                        {selectedArchive.entries.reduce((sum, e) => sum + e.totalGram, 0).toLocaleString()}g
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <FileText className="w-20 h-20 mx-auto mb-4 opacity-50" />
+                <p className="text-lg">Bir sayım seçin</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}

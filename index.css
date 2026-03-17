@@ -1,0 +1,319 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { productsByRegion } from '../../../data/products';
+import { ShoppingCart, Send, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { regions } from '../../../data/products';
+
+interface OrderItem {
+  id: string;
+  productId: string;
+  productName: string;
+  category: string;
+  quantity: number;
+  delivered: boolean;
+}
+
+interface OrderHistory {
+  id: string;
+  date: string;
+  region: string;
+  staff: string;
+  items: OrderItem[];
+}
+
+export function SiparisPanel() {
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedProduct, setSelectedProduct] = useState<string>('');
+  const [quantity, setQuantity] = useState<string>('');
+  const [orderList, setOrderList] = useState<OrderItem[]>([]);
+  const [orderHistory, setOrderHistory] = useState<OrderHistory[]>([]);
+
+  const selectedRegionId = localStorage.getItem('selectedRegion') || 'degirmen';
+  const currentUser = localStorage.getItem('currentUser') || 'Kullanıcı';
+  const currentRegion = regions.find(r => r.id === selectedRegionId);
+  
+  // Ana depodan ürünler
+  const products = productsByRegion['ana-depo'] || [];
+  const categories = Array.from(new Set(products.map(p => p.category)));
+  const filteredProducts = selectedCategory 
+    ? products.filter(p => p.category === selectedCategory)
+    : [];
+
+  useEffect(() => {
+    // Sipariş geçmişini yükle
+    const history = localStorage.getItem('order_history');
+    if (history) {
+      setOrderHistory(JSON.parse(history));
+    }
+
+    // Mevcut siparişi yükle
+    const current = localStorage.getItem(`order_current_${selectedRegionId}`);
+    if (current) {
+      setOrderList(JSON.parse(current));
+    }
+  }, [selectedRegionId]);
+
+  const handleAddToOrder = () => {
+    if (!selectedCategory || !selectedProduct || !quantity) {
+      toast.error('Lütfen tüm alanları doldurun!');
+      return;
+    }
+
+    const product = products.find(p => p.id === selectedProduct);
+    if (!product) return;
+
+    const newItem: OrderItem = {
+      id: Date.now().toString(),
+      productId: product.id,
+      productName: product.name,
+      category: selectedCategory,
+      quantity: parseFloat(quantity) || 0,
+      delivered: false,
+    };
+
+    const updatedList = [...orderList, newItem];
+    setOrderList(updatedList);
+    localStorage.setItem(`order_current_${selectedRegionId}`, JSON.stringify(updatedList));
+
+    setQuantity('');
+    toast.success('Ürün siparişe eklendi!');
+  };
+
+  const handleRemoveItem = (id: string) => {
+    const updatedList = orderList.filter(item => item.id !== id);
+    setOrderList(updatedList);
+    localStorage.setItem(`order_current_${selectedRegionId}`, JSON.stringify(updatedList));
+    toast.success('Ürün siparişten çıkarıldı!');
+  };
+
+  const handleToggleDelivered = (id: string) => {
+    const updatedList = orderList.map(item =>
+      item.id === id ? { ...item, delivered: !item.delivered } : item
+    );
+    setOrderList(updatedList);
+    localStorage.setItem(`order_current_${selectedRegionId}`, JSON.stringify(updatedList));
+  };
+
+  const handleSendOrder = () => {
+    if (orderList.length === 0) {
+      toast.error('Sipariş listesi boş!');
+      return;
+    }
+
+    // WhatsApp mesajını oluştur
+    const orderText = orderList.map((item, i) => 
+      `${i + 1}. ${item.productName} - ${item.quantity} adet ${item.delivered ? '✅ Teslim Edildi' : '⏳ Bekliyor'}`
+    ).join('\n');
+
+    const message = `
+🏪 *${currentRegion?.name}*
+👤 Personel: ${currentUser}
+📅 Tarih: ${new Date().toLocaleDateString('tr-TR')}
+
+📦 *SİPARİŞ LİSTESİ:*
+${orderText}
+
+Toplam ${orderList.length} ürün sipariş edildi.
+    `.trim();
+
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    
+    // Siparişi arşive ekle
+    const newHistory: OrderHistory = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      region: selectedRegionId,
+      staff: currentUser,
+      items: orderList,
+    };
+
+    const updatedHistory = [...orderHistory, newHistory];
+    setOrderHistory(updatedHistory);
+    localStorage.setItem('order_history', JSON.stringify(updatedHistory));
+
+    // Mevcut siparişi temizle
+    setOrderList([]);
+    localStorage.removeItem(`order_current_${selectedRegionId}`);
+
+    // WhatsApp'ı aç
+    window.open(whatsappUrl, '_blank');
+    toast.success('Sipariş WhatsApp\'a gönderildi!');
+  };
+
+  return (
+    <div className="h-full flex flex-col p-8 overflow-hidden">
+      <motion.div
+        className="bg-white rounded-2xl shadow-xl flex-1 flex overflow-hidden"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+      >
+        {/* Sol: Form */}
+        <div className="w-2/5 p-8 border-r border-gray-200 overflow-y-auto">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6">Sipariş Tedarik</h2>
+          
+          <div className="bg-blue-50 p-4 rounded-xl mb-6">
+            <p className="text-sm text-blue-800">
+              <strong>Bölge:</strong> {currentRegion?.name}
+            </p>
+            <p className="text-sm text-blue-800">
+              <strong>Personel:</strong> {currentUser}
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <Label className="text-gray-700 font-medium">Kategori</Label>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="mt-2 h-12">
+                  <SelectValue placeholder="Kategori seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-gray-700 font-medium">Ürün (Ana Depo Stoğu)</Label>
+              <Select 
+                value={selectedProduct} 
+                onValueChange={setSelectedProduct}
+                disabled={!selectedCategory}
+              >
+                <SelectTrigger className="mt-2 h-12">
+                  <SelectValue placeholder="Ürün seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredProducts.map(prod => (
+                    <SelectItem key={prod.id} value={prod.id}>
+                      {prod.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-gray-700 font-medium">Adet</Label>
+              <Input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="mt-2 h-12"
+                placeholder="Sipariş adedi"
+                min="1"
+                step="1"
+              />
+            </div>
+
+            <Button
+              onClick={handleAddToOrder}
+              className="w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700"
+            >
+              <ShoppingCart className="w-5 h-5 mr-2" />
+              Siparişe Ekle
+            </Button>
+          </div>
+        </div>
+
+        {/* Sağ: Sipariş Listesi */}
+        <div className="flex-1 flex flex-col">
+          {/* Üst: Mevcut Sipariş */}
+          <div className="flex-1 p-8 border-b border-gray-200 overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-800">Sipariş Listesi</h3>
+              <Button
+                onClick={handleSendOrder}
+                disabled={orderList.length === 0}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              >
+                <Send className="w-5 h-5 mr-2" />
+                WhatsApp'a Gönder
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {orderList.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  className="p-4 bg-gray-50 rounded-xl flex items-center justify-between"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800">{item.productName}</p>
+                    <p className="text-sm text-gray-600">{item.category} - {item.quantity} adet</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant={item.delivered ? "default" : "outline"}
+                      onClick={() => handleToggleDelivered(item.id)}
+                      className={item.delivered ? "bg-green-500" : ""}
+                    >
+                      {item.delivered ? '✓ Teslim' : 'Bekliyor'}
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleRemoveItem(item.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+              
+              {orderList.length === 0 && (
+                <div className="text-center py-12 text-gray-400">
+                  Sipariş listesi boş
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Alt: Sipariş Geçmişi */}
+          <div className="h-64 p-8 overflow-y-auto bg-gray-50">
+            <h4 className="text-xl font-bold text-gray-800 mb-4">Sipariş Geçmişi</h4>
+            <div className="space-y-2">
+              {orderHistory.slice(-5).reverse().map((order, index) => (
+                <motion.div
+                  key={order.id}
+                  className="p-3 bg-white rounded-lg shadow-sm"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {regions.find(r => r.id === order.region)?.name}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {new Date(order.date).toLocaleDateString('tr-TR')} - {order.staff}
+                      </p>
+                    </div>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                      {order.items.length} ürün
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}

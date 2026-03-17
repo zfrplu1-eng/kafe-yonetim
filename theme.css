@@ -1,272 +1,156 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { X, UserPlus, Unlock, Settings, Shield } from 'lucide-react';
-import { toast } from 'sonner';
-import { regions } from '../../../data/products';
+import { motion, AnimatePresence } from 'motion/react';
+import { recipes } from '../../../data/products';
+import { X } from 'lucide-react';
+import { ImageWithFallback } from '../figma/ImageWithFallback';
 
-interface Props {
-  onClose: () => void;
-}
+export function RecetePanel() {
+  const [selectedRecipe, setSelectedRecipe] = useState<string | null>(null);
 
-export function AdminPanel({ onClose }: Props) {
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('');
-
-  const handleAddUser = () => {
-    if (!newUsername || !newPassword) {
-      toast.error('Kullanıcı adı ve şifre gerekli!');
-      return;
-    }
-
-    // Kullanıcıları localStorage'a kaydet (gerçek uygulamada backend kullanılmalı)
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    users.push({
-      username: newUsername,
-      password: newPassword,
-      role: 'user',
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem('users', JSON.stringify(users));
-
-    toast.success(`Kullanıcı "${newUsername}" eklendi!`);
-    setNewUsername('');
-    setNewPassword('');
-  };
-
-  const handleUnlockRegion = () => {
-    if (!selectedRegion) {
-      toast.error('Bir bölge seçin!');
-      return;
-    }
-
-    localStorage.removeItem(`sayim_lock_${selectedRegion}`);
-    toast.success('Bölge kilidi kaldırıldı!');
-    setSelectedRegion('');
-  };
-
-  const handleClearAllData = () => {
-    if (confirm('TÜM VERİLERİ SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ? Bu işlem geri alınamaz!')) {
-      localStorage.removeItem('sayim_archive');
-      localStorage.removeItem('order_history');
-      regions.forEach(region => {
-        localStorage.removeItem(`sayim_lock_${region.id}`);
-        localStorage.removeItem(`sayim_current_${region.id}`);
-        localStorage.removeItem(`order_current_${region.id}`);
-      });
-      toast.success('Tüm veriler temizlendi!');
-    }
-  };
+  const selected = recipes.find(r => r.id === selectedRecipe);
 
   return (
-    <motion.div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
+    <div className="h-full flex flex-col p-8 overflow-hidden">
       <motion.div
-        className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
-        initial={{ scale: 0.9, y: 50 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 50 }}
+        className="bg-white rounded-2xl shadow-xl flex-1 overflow-hidden"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-8 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          
-          <div className="flex items-center gap-4">
-            <Shield className="w-12 h-12" />
-            <div>
-              <h2 className="text-3xl font-bold">Admin Paneli</h2>
-              <p className="text-purple-100 mt-1">Sistem ayarları ve yönetimi</p>
-            </div>
-          </div>
+        <div className="p-8 border-b border-gray-200">
+          <h2 className="text-3xl font-bold text-gray-800">Reçete Kataloğu</h2>
+          <p className="text-gray-600 mt-2">Ürünlerimizin detaylı tariflerine göz atın</p>
         </div>
 
-        {/* Content */}
-        <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            
-            {/* Kullanıcı Ekle */}
-            <motion.div
-              className="bg-gradient-to-br from-blue-50 to-cyan-50 p-6 rounded-2xl"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <UserPlus className="w-6 h-6 text-blue-600" />
-                <h3 className="text-xl font-bold text-gray-800">Yeni Kullanıcı Ekle</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label>Kullanıcı Adı</Label>
-                  <Input
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="kullanici123"
-                    className="mt-2"
-                  />
+        <div className="p-8 overflow-y-auto h-[calc(100%-100px)]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recipes.map((recipe, index) => (
+              <motion.div
+                key={recipe.id}
+                className="group cursor-pointer"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => setSelectedRecipe(recipe.id)}
+                whileHover={{ scale: 1.03 }}
+              >
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
+                  <div className="aspect-video bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center overflow-hidden">
+                    <ImageWithFallback
+                      src={`https://source.unsplash.com/600x400/?${recipe.image}`}
+                      alt={recipe.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-xl font-bold text-gray-800 group-hover:text-amber-600 transition-colors">
+                      {recipe.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {recipe.ingredients.length} malzeme • {recipe.instructions.length} adım
+                    </p>
+                  </div>
                 </div>
-                
-                <div>
-                  <Label>Şifre</Label>
-                  <Input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••"
-                    className="mt-2"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleAddUser}
-                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700"
-                >
-                  Kullanıcı Ekle
-                </Button>
-              </div>
-            </motion.div>
-
-            {/* Bölge Kilidini Aç */}
-            <motion.div
-              className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-2xl"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <Unlock className="w-6 h-6 text-amber-600" />
-                <h3 className="text-xl font-bold text-gray-800">Bölge Kilidini Aç</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label>Bölge Seç</Label>
-                  <select
-                    value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="">Bir bölge seçin</option>
-                    {regions.map(region => (
-                      <option key={region.id} value={region.id}>
-                        {region.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <Button
-                  onClick={handleUnlockRegion}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
-                >
-                  Kilidi Kaldır
-                </Button>
-              </div>
-            </motion.div>
-
-            {/* Veri Yönetimi */}
-            <motion.div
-              className="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-2xl md:col-span-2"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <Settings className="w-6 h-6 text-red-600" />
-                <h3 className="text-xl font-bold text-gray-800">Tehlikeli Alan</h3>
-              </div>
-              
-              <p className="text-gray-600 mb-4">
-                Aşağıdaki işlemler geri alınamaz. Dikkatli kullanın!
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button
-                  onClick={handleClearAllData}
-                  variant="destructive"
-                  className="bg-red-500 hover:bg-red-600"
-                >
-                  Tüm Verileri Temizle
-                </Button>
-                
-                <Button
-                  onClick={() => {
-                    localStorage.removeItem('sayim_archive');
-                    toast.success('Sayım arşivi temizlendi!');
-                  }}
-                  variant="outline"
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  Sayım Arşivini Sil
-                </Button>
-                
-                <Button
-                  onClick={() => {
-                    localStorage.removeItem('order_history');
-                    toast.success('Sipariş geçmişi temizlendi!');
-                  }}
-                  variant="outline"
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  Sipariş Geçmişini Sil
-                </Button>
-              </div>
-            </motion.div>
-
-            {/* Sistem Bilgileri */}
-            <motion.div
-              className="bg-gradient-to-br from-gray-50 to-slate-50 p-6 rounded-2xl md:col-span-2"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Sistem Bilgileri</h3>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-xl text-center">
-                  <p className="text-2xl font-bold text-blue-600">
-                    {regions.length}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Bölge</p>
-                </div>
-                
-                <div className="bg-white p-4 rounded-xl text-center">
-                  <p className="text-2xl font-bold text-green-600">
-                    {JSON.parse(localStorage.getItem('users') || '[]').length}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Kullanıcı</p>
-                </div>
-                
-                <div className="bg-white p-4 rounded-xl text-center">
-                  <p className="text-2xl font-bold text-amber-600">
-                    {JSON.parse(localStorage.getItem('sayim_archive') || '[]').length}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Sayım Kaydı</p>
-                </div>
-                
-                <div className="bg-white p-4 rounded-xl text-center">
-                  <p className="text-2xl font-bold text-purple-600">
-                    {JSON.parse(localStorage.getItem('order_history') || '[]').length}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Sipariş Kaydı</p>
-                </div>
-              </div>
-            </motion.div>
-
+              </motion.div>
+            ))}
           </div>
         </div>
       </motion.div>
-    </motion.div>
+
+      {/* Recipe Detail Modal */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedRecipe(null)}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              initial={{ scale: 0.9, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 50 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex">
+                {/* Sol: Resim */}
+                <div className="w-2/5 bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center relative">
+                  <ImageWithFallback
+                    src={`https://source.unsplash.com/800x600/?${selected.image}`}
+                    alt={selected.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  <h2 className="absolute bottom-8 left-8 text-3xl font-bold text-white drop-shadow-lg">
+                    {selected.name}
+                  </h2>
+                </div>
+
+                {/* Sağ: Tarif */}
+                <div className="flex-1 p-8 overflow-y-auto max-h-[90vh]">
+                  <button
+                    onClick={() => setSelectedRecipe(null)}
+                    className="absolute top-4 right-4 w-10 h-10 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+
+                  <div className="space-y-6 mt-4">
+                    {/* Malzemeler */}
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span className="w-2 h-8 bg-gradient-to-b from-amber-500 to-orange-600 rounded-full" />
+                        Malzemeler
+                      </h3>
+                      <ul className="space-y-2">
+                        {selected.ingredients.map((ingredient, i) => (
+                          <motion.li
+                            key={i}
+                            className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                          >
+                            <span className="w-6 h-6 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+                              {i + 1}
+                            </span>
+                            <span className="text-gray-700">{ingredient}</span>
+                          </motion.li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Hazırlanış */}
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span className="w-2 h-8 bg-gradient-to-b from-amber-500 to-orange-600 rounded-full" />
+                        Hazırlanışı
+                      </h3>
+                      <ol className="space-y-3">
+                        {selected.instructions.map((instruction, i) => (
+                          <motion.li
+                            key={i}
+                            className="flex gap-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05 + 0.3 }}
+                          >
+                            <span className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0">
+                              {i + 1}
+                            </span>
+                            <p className="text-gray-700 flex-1 pt-1">{instruction}</p>
+                          </motion.li>
+                        ))}
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

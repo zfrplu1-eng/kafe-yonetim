@@ -1,192 +1,175 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown } from 'lucide-react';
-import { regions } from '../../data/products';
+import { motion } from 'motion/react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Lock, User } from 'lucide-react';
 import { VargelLogoPlaceholder, DegirmenLogoPlaceholder } from './LogoPlaceholder';
 
-export function RegionSelection() {
+export function LoginScreen() {
   const navigate = useNavigate();
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showLogin, setShowLogin] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const currentRegion = regions.find(r => r.id === selectedRegion);
+  useState(() => {
+    const timer = setTimeout(() => setShowLogin(true), 500);
+    return () => clearTimeout(timer);
+  });
 
-  const handleRegionSelect = (regionId: string) => {
-    setSelectedRegion(regionId);
-    setIsOpen(false);
-    localStorage.setItem('selectedRegion', regionId);
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
     
-    // 3 saniye sonra dashboard'a geç
+    // Basit validasyon (gerçek sistemde backend ile kontrol edilecek)
     setTimeout(() => {
-      setIsTransitioning(true);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000);
-    }, 3000);
+      if (username && password) {
+        localStorage.setItem('currentUser', username);
+        localStorage.setItem('userRole', username.toLowerCase() === 'admin' ? 'admin' : 'user');
+        navigate('/region');
+      }
+      setIsLoggingIn(false);
+    }, 1500);
   };
 
   return (
     <div className="fixed inset-0 bg-white flex items-center justify-center overflow-hidden">
-      <AnimatePresence>
-        {isTransitioning && (
-          <>
-            <motion.div
-              className="absolute inset-0 flex z-30"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div 
-                className="w-1/2 h-full flex items-center justify-center bg-white p-16"
-                initial={{ x: 0 }}
-                animate={{ x: '-100%' }}
-                transition={{ duration: 1, ease: "easeInOut" }}
-              >
-                <VargelLogoPlaceholder />
-              </motion.div>
-              <motion.div 
-                className="w-1/2 h-full flex items-center justify-center bg-white p-16"
-                initial={{ x: 0 }}
-                animate={{ x: '100%' }}
-                transition={{ duration: 1, ease: "easeInOut" }}
-              >
-                <DegirmenLogoPlaceholder />
-              </motion.div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Background - Blurred Logos */}
+      <motion.div 
+        className="absolute inset-0 flex"
+        animate={{ 
+          filter: showLogin ? 'blur(8px)' : 'blur(0px)',
+          opacity: showLogin ? 0.3 : 1
+        }}
+        transition={{ duration: 0.8 }}
+      >
+        <div className="w-1/2 h-full flex items-center justify-center border-r-2 border-gray-200 p-12">
+          <VargelLogoPlaceholder />
+        </div>
+        <div className="w-1/2 h-full flex items-center justify-center p-12">
+          <DegirmenLogoPlaceholder />
+        </div>
+      </motion.div>
 
-      <div className="w-full h-full flex">
-        {/* Sol Taraf - Logo */}
-        <motion.div 
-          className="w-1/2 h-full flex items-center justify-center bg-white p-16"
-          initial={{ x: -100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.8 }}
+      {/* Login Panel */}
+      {showLogin && (
+        <motion.div
+          className="relative z-10 bg-white rounded-2xl shadow-2xl border-2 border-gray-200 p-8 md:p-12 max-w-md w-full mx-4"
+          initial={{ scale: 0, opacity: 0, y: 100 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ 
+            type: "spring",
+            stiffness: 200,
+            damping: 20,
+            duration: 0.6
+          }}
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={selectedRegion || 'default'}
-              className="max-w-[70%] max-h-[70%] object-contain"
-              initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
-              animate={{ scale: 1, opacity: 1, rotate: 0 }}
-              exit={{ scale: 0.8, opacity: 0, rotate: 10 }}
-              transition={{ duration: 0.5 }}
-            >
-              {currentRegion?.logo === 'vargel' ? <VargelLogoPlaceholder /> : <DegirmenLogoPlaceholder />}
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-2">
+              Hoş Geldiniz
+            </h1>
+            <p className="text-lg font-semibold text-gray-700">
+              Değirmen Kafe
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Personel Panel Girişidir
+            </p>
+          </motion.div>
 
-        {/* Sağ Taraf - Bölge Seçimi */}
-        <motion.div 
-          className="w-1/2 h-full flex items-center justify-center bg-white"
-          initial={{ x: 100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.8 }}
-        >
-          <div className="max-w-md w-full px-8">
-            <motion.h2
-              className="text-3xl font-bold text-gray-800 mb-8 text-center"
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              Bölge Seçimi
-            </motion.h2>
-
+          <form onSubmit={handleLogin} className="space-y-6">
             <motion.div
-              className="relative"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5 }}
             >
-              <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full bg-white border-2 border-gray-300 rounded-xl px-6 py-4 flex items-center justify-between hover:border-amber-400 transition-all duration-300 shadow-md hover:shadow-xl"
-              >
-                <span className="text-lg font-medium text-gray-700">
-                  {currentRegion ? currentRegion.name : 'Bir bölge seçin'}
-                </span>
-                <motion.div
-                  animate={{ rotate: isOpen ? 180 : 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ChevronDown className="w-6 h-6 text-gray-500" />
-                </motion.div>
-              </button>
-
-              <AnimatePresence>
-                {isOpen && (
-                  <motion.div
-                    className="absolute top-full mt-2 w-full bg-white border-2 border-gray-200 rounded-xl shadow-2xl overflow-hidden z-10"
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {regions.map((region, index) => (
-                      <motion.button
-                        key={region.id}
-                        onClick={() => handleRegionSelect(region.id)}
-                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 transition-all duration-200 border-b border-gray-100 last:border-b-0"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        whileHover={{ x: 5 }}
-                      >
-                        <span className="text-gray-700 font-medium">
-                          {region.name}
-                        </span>
-                        <div 
-                          className={`w-4 h-4 rounded-full ${
-                            region.logo === 'vargel' 
-                              ? 'bg-gradient-to-r from-blue-500 to-cyan-500' 
-                              : 'bg-gradient-to-r from-amber-500 to-orange-600'
-                          }`}
-                        />
-                      </motion.button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <Label htmlFor="username" className="text-gray-700 font-medium">
+                Kullanıcı Adı
+              </Label>
+              <div className="relative mt-2">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10 h-12 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
+                  placeholder="Kullanıcı adınızı girin"
+                  required
+                />
+              </div>
             </motion.div>
 
-            {selectedRegion && !isTransitioning && (
-              <motion.div
-                className="mt-8 text-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <Label htmlFor="password" className="text-gray-700 font-medium">
+                Şifre
+              </Label>
+              <div className="relative mt-2">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 h-12 border-gray-300 focus:border-amber-500 focus:ring-amber-500"
+                  placeholder="Şifrenizi girin"
+                  required
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <Button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full h-12 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <p className="text-amber-600 font-semibold">
-                  Dashboard'a yönlendiriliyorsunuz...
-                </p>
-                <div className="flex justify-center gap-1 mt-4">
-                  {[0, 1, 2].map((i) => (
-                    <motion.div
-                      key={i}
-                      className="w-2 h-2 bg-amber-500 rounded-full"
-                      animate={{ 
-                        scale: [1, 1.5, 1],
-                        opacity: [0.3, 1, 0.3]
-                      }}
-                      transition={{ 
-                        duration: 1,
-                        repeat: Infinity,
-                        delay: i * 0.2
-                      }}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </div>
+                {isLoggingIn ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-6 h-6 border-3 border-white border-t-transparent rounded-full"
+                  />
+                ) : (
+                  'Giriş Yap'
+                )}
+              </Button>
+            </motion.div>
+          </form>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="text-xs text-gray-400 text-center mt-6"
+          >
+            Şifrenizi unuttuysanız yöneticinizle iletişime geçin
+          </motion.p>
         </motion.div>
-      </div>
+      )}
+
+      {isLoggingIn && (
+        <motion.div
+          className="absolute inset-0 bg-white z-20"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        />
+      )}
     </div>
   );
 }
